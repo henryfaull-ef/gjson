@@ -211,6 +211,74 @@ func (t Result) IsArray() bool {
 	return t.Type == JSON && len(t.Raw) > 0 && t.Raw[0] == '['
 }
 
+// ForEach for editing JSON values in-place
+func (t *Result) ForEachModify(iterator func(key, value *Result) bool) {
+	if !t.Exists() {
+		return
+	}
+	if t.Type != JSON {
+		iterator(&Result{}, t)
+		return
+	}
+	json := t.Raw
+	var keys bool
+	var i int
+	var key, value *Result
+	for ; i < len(json); i++ {
+		if json[i] == '{' {
+			i++
+			key.Type = String
+			keys = true
+			break
+		} else if json[i] == '[' {
+			i++
+			break
+		}
+		if json[i] > ' ' {
+			return
+		}
+	}
+	var str string
+	var vesc bool
+	var ok bool
+	for ; i < len(json); i++ {
+		if keys {
+			if json[i] != '"' {
+				continue
+			}
+			s := i
+			i, str, vesc, ok = parseString(json, i+1)
+			if !ok {
+				return
+			}
+			if vesc {
+				key.Str = unescape(str[1 : len(str)-1])
+			} else {
+				key.Str = str[1 : len(str)-1]
+			}
+			key.Raw = str
+			key.Index = s
+		}
+		for ; i < len(json); i++ {
+			if json[i] <= ' ' || json[i] == ',' || json[i] == ':' {
+				continue
+			}
+			break
+		}
+		s := i
+		var valRes Result
+		i, valRes, ok = parseAny(json, i, true)
+		*value = valRes
+		if !ok {
+			return
+		}
+		value.Index = s
+		if !iterator(key, value) {
+			return
+		}
+	}
+}
+
 // ForEach iterates through values.
 // If the result represents a non-existent value, then no values will be
 // iterated. If the result is an Object, the iterator will pass the key and
