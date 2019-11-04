@@ -220,34 +220,36 @@ func (t *Result) ForEachModify(iterator func(key, value *Result) bool) {
 		iterator(&Result{}, t)
 		return
 	}
-	json := t.Raw
+	jsn := t.Raw
 	var keys bool
 	var i int
-	var key, value *Result
-	for ; i < len(json); i++ {
-		if json[i] == '{' {
+	key := &Result{}
+	value := &Result{}
+
+	for ; i < len(jsn); i++ {
+		if jsn[i] == '{' {
 			i++
 			key.Type = String
 			keys = true
 			break
-		} else if json[i] == '[' {
+		} else if jsn[i] == '[' {
 			i++
 			break
 		}
-		if json[i] > ' ' {
+		if jsn[i] > ' ' {
 			return
 		}
 	}
 	var str string
 	var vesc bool
 	var ok bool
-	for ; i < len(json); i++ {
+	for ; i < len(jsn); i++ {
 		if keys {
-			if json[i] != '"' {
+			if jsn[i] != '"' {
 				continue
 			}
 			s := i
-			i, str, vesc, ok = parseString(json, i+1)
+			i, str, vesc, ok = parseString(jsn, i+1)
 			if !ok {
 				return
 			}
@@ -259,15 +261,15 @@ func (t *Result) ForEachModify(iterator func(key, value *Result) bool) {
 			key.Raw = str
 			key.Index = s
 		}
-		for ; i < len(json); i++ {
-			if json[i] <= ' ' || json[i] == ',' || json[i] == ':' {
+		for ; i < len(jsn); i++ {
+			if jsn[i] <= ' ' || jsn[i] == ',' || jsn[i] == ':' {
 				continue
 			}
 			break
 		}
 		s := i
 		var valRes Result
-		i, valRes, ok = parseAny(json, i, true)
+		i, valRes, ok = parseAny(jsn, i, true)
 		*value = valRes
 		if !ok {
 			return
